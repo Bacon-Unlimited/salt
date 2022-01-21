@@ -550,7 +550,7 @@ def list(
     return ret
 
 
-def installed(summary=False, kbs_only=False):
+def installed(summary=False, kbs_only=False, guids_only=False):
     """
     .. versionadded:: 3001
 
@@ -577,7 +577,14 @@ def installed(summary=False, kbs_only=False):
         kbs_only (bool):
             Only return a list of KBs installed on the system. If this parameter
             is passed, the ``summary`` parameter will be ignored. Default is
-            ``False``
+            ``False``. Do not call with guids_only=True.
+            
+        guids_only (bool):
+            Only return a list of guids installed on the system. If this parameter
+            is passed, the ``summary`` parameter will be ignored. GUIDs may be 
+            preferred for targeting specific updates. GUIDs are always unique. 
+            KBs can be reused many times. Default is ``False``. 
+            Do not call with kbs_only=True.
 
     Returns:
         dict:
@@ -586,6 +593,7 @@ def installed(summary=False, kbs_only=False):
 
         list:
             Returns a list of KBs installed on the system when ``kbs_only=True``
+            or when ``guids_only=True``
 
     CLI Examples:
 
@@ -599,18 +607,33 @@ def installed(summary=False, kbs_only=False):
 
         # Get a simple list of KBs installed on the system
         salt '*' win_wua.installed kbs_only=True
+        
+        # Get a simple list of GUIDs installed on the system
+        salt '*' win_wua.installed guids_only=True
+        
+        # Requesting KBs and GUIDs only returns null
+        NULL RETURN: salt '*' win_wua.installed guids_only=True kbs_only=True
     """
     # Create a Windows Update Agent instance. Since we're only listing installed
     # updates, there's no need to go online to update the Windows Update db
     wua = salt.utils.win_update.WindowsUpdateAgent(online=False)
     updates = wua.installed()  # Get installed Updates objects
     results = updates.list()  # Convert to list
+    
+    if kbs_only and guids_only:
+        return False, "win_wua.installed does not support calling kbs_only=True and guids_only=True"
 
     if kbs_only:
         list_kbs = set()
         for item in results:
             list_kbs.update(results[item]["KBs"])
         return sorted(list_kbs)
+    
+    if guids_only:
+        list_guids = set()
+        for item in results:
+            list_guids.update(results[item]["guid"])
+        return sorted(list_guids)
 
     return updates.summary() if summary else results
 
